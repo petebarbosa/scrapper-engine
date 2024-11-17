@@ -11,7 +11,7 @@ class Api::V1::TasksController < ApplicationController
       WebScraperService.new(task).perform_scraping
       render json: task, status: :created
     else
-      rendre json: { errors: task.errors.full_messages }, status: :unprocessable_entity
+      render json: { errors: task.errors.full_messages }, status: :unprocessable_entity
     end
   end
 
