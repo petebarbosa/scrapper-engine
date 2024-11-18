@@ -5,7 +5,7 @@ class CreateTasks < ActiveRecord::Migration[7.2]
       t.string :name
       t.string :description
       t.string :url_to_scrape, null: false
-      t.integer :status, default: 0
+      t.string :status, default: 'pending'
       t.json :scraped_data
       t.text :error_message
 
