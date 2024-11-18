@@ -1,11 +1,17 @@
 class Task < ApplicationRecord
   belongs_to :user
 
-  enum :status, [ :pending, :in_progress, :finished, :failed ], default: :pending
+  VALID_STATUSES = %w[pending in_progress finished failed].freeze
 
+  validates :status, inclusion: { in: VALID_STATUSES }
   validates :user_id, presence: true
   validates :url_to_scrape, presence: true,
-    format: { with: URI.regexp(%w[http https]), message: "must be a valid URL" }
+            format: { with: URI::DEFAULT_PARSER.make_regexp(%w[http https]), message: "must be a valid URL" }
 
-  serialize :scraped_data, JSON
+  # serialize :scraped_data, coder: JSON
+
+  def initialize(attributes = {})
+    super
+    self.status ||= "pending"
+  end
 end
