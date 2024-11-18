@@ -1,12 +1,15 @@
-class WebScraperkService
-  URL_PATTERN = %r{https://www\.webmotors\.com\.br/comprar/([^/]+)/([^/]+)/}
+require "open-uri"
+require "nokogiri"
+
+class WebScraperService
+  URL_PATTERN = %r{/comprar/([^/]+)/([^/]+)/}
 
   def initialize(task)
     @task = task
   end
 
   def perform_scraping
-    @task.update(status: :in_progress)
+    @task.update(status: "in_progress")
 
     begin
       url_match = URL_PATTERN.match(@task.url_to_scrape)
@@ -16,8 +19,8 @@ class WebScraperkService
       model = url_match[2]
 
       doc = Nokogiri::HTML(URI.open(@task.url_to_scrape))
-      price_element = doc.at_css("VehicleDetailsFipe__price__value")
-      rails "Price element not found" unless price_element
+      price_element = doc.at_css(".VehicleDetailsFipe__price__value")
+      raise "Price element not found" unless price_element
 
       price = price_element.text.gsub("R$ ", "").gsub(".", "")
 
@@ -30,7 +33,7 @@ class WebScraperkService
 
       @task.update(
         scraped_data: car_data,
-        status: finished
+        status: "finished"
       )
 
       # notify_completion(success: true)
@@ -46,7 +49,7 @@ class WebScraperkService
 
   def handle_error(message)
     @task.update(
-      status: :failed,
+      status: "failed",
       error_message: message
     )
 
