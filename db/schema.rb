@@ -12,12 +12,13 @@
 
 ActiveRecord::Schema[7.2].define(version: 2024_11_16_194747) do
   create_table "tasks", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
+    t.bigint "user_id", null: false
     t.string "name"
     t.string "description"
-    t.string "url_to_scrape"
-    t.bigint "user_id", null: false
-    t.integer "status", default: 0
+    t.string "url_to_scrape", null: false
+    t.string "status", default: "pending"
     t.json "scraped_data"
+    t.text "error_message"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_tasks_on_user_id"
