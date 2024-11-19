@@ -1,11 +1,27 @@
-require "open-uri"
-require "nokogiri"
+require 'ferrum'
+require 'nokogiri'
 
 class WebScraperService
   URL_PATTERN = %r{/comprar/([^/]+)/([^/]+)/}
 
   def initialize(task)
     @task = task
+    @browser = Ferrum::Browser.new(
+      timeout: 20,
+      window_size: [1366, 768],
+      headless: true,
+      browser_options: {
+        'disable-web-security': true,
+        'disable-site-isolation-trials': true,
+        'incognito': true,
+        'disable-sync': true,
+        'disable-save-password-bubble': true,
+        'disable-notifications': true,
+        'disable-extensions': true,
+        'disable-plugins': true
+      },
+      browser_path: "/usr/bin/brave-browser"
+    )
   end
 
   def perform_scraping
@@ -18,11 +34,22 @@ class WebScraperService
       brand = url_match[1]
       model = url_match[2]
 
-      doc = Nokogiri::HTML(URI.open(@task.url_to_scrape))
-      price_element = doc.at_css(".VehicleDetailsFipe__price__value")
-      raise "Price element not found" unless price_element
+      @browser.goto(@task.url_to_scrape)
 
-      price = price_element.text.gsub("R$ ", "").gsub(".", "")
+      @browser.network.wait_for_idle
+      @browser.evaluate('window.scrollBy(0, 300)')
+      price_text = nil
+      selector = '.VehicleDetailsFipe__price__value'
+
+      @browser.wait_for_selector(selector, timeout: 5)
+      element = @browser.at_css(selector)
+      if element
+        price_text = element.text
+      end
+
+      raise "Price element not found" unless price_text
+
+      price = price_text.gsub(/[^\d]/, '')
 
       car_data = {
         brand: brand,
@@ -36,12 +63,14 @@ class WebScraperService
         status: "finished"
       )
 
-      # notify_completion(success: true)
-
-    rescue OpenURI::HTTPError => e
-      handle_error("HTTP Error: #{e.message}")
+    rescue Ferrum::TimeoutError => e
+      handle_error("Timeout waiting for page to load: #{e.message}")
+    rescue Ferrum::Error => e
+      handle_error("Browser error: #{e.message}")
     rescue StandardError => e
       handle_error(e.message)
+    ensure
+      @browser.quit
     end
   end
 
@@ -52,19 +81,5 @@ class WebScraperService
       status: "failed",
       error_message: message
     )
-
-    # notify_completion(success: false, error: message)
-  end
-
-  def notify_completion(success:, error: nil)
-    notification_data = {
-      task_id: @task.id,
-      user_id: @task.user_id,
-      status: success ? "completed" : "failed",
-      scraped_data: @task.scraped_data,
-      error: error
-    }
-
-    # NotificationService.send(notification_data)
   end
 end
