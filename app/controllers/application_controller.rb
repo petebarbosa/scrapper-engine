@@ -1,17 +1,26 @@
 class ApplicationController < ActionController::API
-  before_action :authenticate_request!
+  before_action :authenticate_request
 
   private
 
   def authenticate_request
-    header = request.header["Authorization"]
-    header = header.split(" ").last if header
+    header = request.headers["Authorization"]
+    if header.nil?
+      render json: { error: "Authorization header missing" }, status: :unauthorized
+      return
+    end
+
+    token = header.split(" ").last
 
     begin
-      decoded = JWT.decode(header, ENV["JWT_SECRET_KEY"], true, { algorithm: "HS256" })
-      @current_user = User.find(decoded[0]["user_id"])
-    rescue JWT::DecodeError, ActiveRecord::RecordNotFound
-      render json: { error: "Unauthorized" }, status: :unauthorized
+      decoded = JWT.decode(token, Rails.application.credentials.fetch(:jwt_secret_key), true, { algorithm: "HS256" })
+      @current_user = User.find(decoded[0]["sub"])
+    rescue JWT::DecodeError => e
+      render json: { error: "Invalid token: #{e.message}" }, status: :unauthorized
+    rescue ActiveRecord::RecordNotFound
+      render json: { error: "User not found" }, status: :unauthorized
+    rescue StandardError => e
+      render json: { error: "Authentication error: #{e.message}" }, status: :unauthorized
     end
   end
 
